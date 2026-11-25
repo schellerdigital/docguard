@@ -30,8 +30,11 @@ Mechanik und Fehlerverhalten, nicht eine Kette bis zur echten Root.
 **A) Ohne Docker, mit echtem Postfix (getestet):**
 ```bash
 sudo apt install postfix bind9 bind9utils unbound age swaks python3-dnspython python3-aiosmtpd
+cd mail-transport/sandbox
 sudo python3 tests/native_gateway_test.py
 ```
+Fehlt der Schlüssel der Empfängerdomain, erzeugt der Test ihn selbst über
+`setup-keys.sh`.
 Startet zwei Postfix-Instanzen aus den ausgelieferten `main.cf`/`master.cf` im Verzeichnis `/tmp/dgtest`
 (eigene Ports 2525/2526, eigene Queues), dazu das signierende DNS, einen Mitlese-Proxy zwischen den Gateways
 und einen Mailpit-Ersatz. Geprüft werden 13 Punkte, u. a.: Anhang beim Empfänger byte-identisch, zwischen den
@@ -43,8 +46,18 @@ gebaut, wurde von mir aber nicht in Docker gestartet (dort lief kein Docker-Daem
 
 ## Start
 
+Einmalig den Schlüssel der Empfängerdomain erzeugen — er liegt bewusst
+nicht im Repository, und der passende öffentliche Schlüssel wird dabei gleich
+in die Zonendateien eingetragen:
+
 ```bash
-cd docguard-sandbox
+cd mail-transport/sandbox
+sh setup-keys.sh
+```
+
+Danach:
+
+```bash
 docker compose up --build
 ```
 
@@ -117,7 +130,7 @@ Beim Durchtesten mit echtem Postfix aufgefallen und behoben:
 ## Struktur
 
 ```
-docguard-sandbox/
+mail-transport/sandbox/
 ├── docker-compose.yml
 ├── dns/                    BIND (signiert) + Unbound (validiert), start.sh
 │   └── zones/                  sender/empfang (signiert), unsigned (unsigniert)
@@ -127,15 +140,16 @@ docguard-sandbox/
 ├── filters/
 │   ├── docguard_filter.py      Sender-seitiger Content-Filter
 │   └── docguard_unwrap.py      Empfänger-seitiger Content-Filter
-└── keys/
-    └── empfang-private.key     Testschlüssel (NICHT für echten Einsatz!)
+├── setup-keys.sh           erzeugt den Schlüssel und trägt ihn in die Zonen ein
+└── keys/                   wird dabei angelegt, steht nicht im Repository
 ```
 
 ## Bekannte Grenzen dieser Sandbox (bewusste Vereinfachungen für Stufe 0)
 
 - **Lokale Root-of-Trust** statt echter DNSSEC-Kette (siehe oben).
-- **Ein Schlüssel pro Domain**, kein Multi-MX-Pooling (Konzeptpapier
-  Abschnitt 3.2) — für Stufe 0 nicht nötig.
+- **Multi-MX-Pooling** ist umgesetzt: Mehrere `v=DG1`-Einträge bilden einen Pool,
+  der Nachrichtenschlüssel wird an alle gewrappt. Über drei Schlüsseln wird der
+  Satz verworfen (Konzeptpapier Abschnitt 2.2 und 3.2).
 - **Kein HSM**, der private Schlüssel liegt als Klartextdatei im
   Container — für einen echten Piloten (Stufe 2) nachrüsten.
 - **MIME-Typ des Original-Anhangs wird nicht mitverschlüsselt/-signiert**
