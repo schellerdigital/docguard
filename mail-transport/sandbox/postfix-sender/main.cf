@@ -1,0 +1,30 @@
+myhostname = mail.sender.docguard.test
+mydomain = sender.docguard.test
+myorigin = $mydomain
+inet_interfaces = all
+mydestination = localhost
+mynetworks = 127.0.0.0/8, 10.10.0.0/24
+
+# Kernstück: jede ausgehende Mail läuft zuerst durch den docguard-Filter,
+# bevor sie tatsächlich zugestellt wird (siehe master.cf).
+content_filter = docguard-filter:dummy
+
+# Test-Relay: alle Mails an *.docguard.test werden direkt an den
+# jeweiligen MX geschickt (in der Sandbox reicht das lokale BIND dafür).
+relayhost =
+
+# Bounces/Rückmeldungen an Absender der eigenen Domain landen in Mailpit
+# (sonst würde die Mail per MX an sich selbst zurückgeschickt = Mail-Loop).
+transport_maps = regexp:/etc/postfix/transport.regexp
+
+smtpd_banner = $myhostname ESMTP docguard-sandbox
+biff = no
+append_dot_mydomain = no
+compatibility_level = 3
+
+# Postfix reicht Umgebungsvariablen NICHT automatisch an Pipe-Filter durch.
+# Ohne diese Zeilen liefe der Filter unbemerkt mit seinen Defaults (Shadow-Mode!).
+import_environment = MAIL_CONFIG MAIL_DEBUG MAIL_LOGTAG TZ XAUTHORITY DISPLAY LANG=C DOCGUARD_SHADOW_MODE DOCGUARD_DNS_SERVER DOCGUARD_REQUIRE_DNSSEC DOCGUARD_LOG DOCGUARD_PRIVATE_KEY DOCGUARD_REINJECT_PORT
+export_environment = TZ MAIL_CONFIG LANG DOCGUARD_SHADOW_MODE DOCGUARD_DNS_SERVER DOCGUARD_REQUIRE_DNSSEC DOCGUARD_LOG DOCGUARD_PRIVATE_KEY DOCGUARD_REINJECT_PORT
+inet_protocols = ipv4
+maillog_file = /var/log/mail.log

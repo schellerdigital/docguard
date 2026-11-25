@@ -1,0 +1,20 @@
+$TTL 300
+@   IN  SOA  ns.unsigned.docguard.test. hostmaster.unsigned.docguard.test. (
+        2026092001 ; serial
+        3600       ; refresh
+        900        ; retry
+        604800     ; expire
+        300 )      ; minimum
+
+    IN  NS   ns.unsigned.docguard.test.
+ns  IN  A 10.10.0.20
+
+@         IN  MX  10  mail.unsigned.docguard.test.
+mail      IN  A 10.10.0.20
+
+; docguard: oeffentlicher age-Schluessel dieser Domain.
+; In Produktion (docguard.de o.ae.) steht dieser Record in einer
+; DNSSEC-signierten Zone beim echten Registrar/DNS-Provider - siehe
+; Konzeptpapier Abschnitt 2-4. Ersetze diesen Key durch den, den
+; keys/empfang-private.key ausgibt, falls du ihn neu generierst.
+_docguard IN TXT "v=DG1; k=age-x25519; p=age1ferl3jv3s0p4mrd605ag3atcr036rvu5ngf7lxxqa9zr99fq9fzqkm03yp"

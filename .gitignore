@@ -1,0 +1,17 @@
+# Geheimnisse und lokale Konfiguration
+lab.env
+keys/
+*.key
+*.private
+
+# Erzeugtes
+__pycache__/
+*.pyc
+.venv/
+dnslab/work/
+received/
+lauf-*.log
+/tmp/dgtest/
+
+# Betriebssystem
+.DS_Store

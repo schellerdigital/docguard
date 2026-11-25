@@ -1,0 +1,3 @@
+dnspython>=2.4
+# nur für den Selbsttest:
+aiosmtpd>=1.4

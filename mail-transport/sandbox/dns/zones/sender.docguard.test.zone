@@ -1,0 +1,13 @@
+$TTL 300
+@   IN  SOA  ns.sender.docguard.test. hostmaster.sender.docguard.test. (
+        2026092001 ; serial
+        3600       ; refresh
+        900        ; retry
+        604800     ; expire
+        300 )      ; minimum
+
+    IN  NS   ns.sender.docguard.test.
+ns  IN  A    10.10.0.10
+
+@         IN  MX  10  mail.sender.docguard.test.
+mail      IN  A   10.10.0.10

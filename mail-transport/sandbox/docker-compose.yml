@@ -1,0 +1,99 @@
+version: "3.8"
+
+# docguard Sandbox — Stufe 0 (Selbstbetrieb/Dogfooding)
+#
+# Simuliert den kompletten Ablauf aus dem Konzeptpapier zwischen zwei
+# Domains, die beide dir gehören:
+#   sender.docguard.test   --sendet Mail mit Anhang-->   empfang.docguard.test
+#
+# DNSSEC: Die Zonen sender/empfang.docguard.test werden beim Start des
+# dns-Containers mit frischen Schlüsseln signiert; ein validierender Unbound
+# (Trust-Anchor = die lokal erzeugten DS-Records) beantwortet die Abfragen
+# der Filter. unsigned.docguard.test bleibt absichtlich unsigniert.
+# Das ist eine lokale Root-of-Trust - sie belegt Mechanik und Fehlerverhalten,
+# nicht eine Kette bis zur echten Root.
+#
+# Start: docker compose up --build
+# Test-Mail senden: siehe README.md ("Testlauf")
+# Ergebnis ansehen: http://localhost:8025 (Mailpit-Weboberfläche)
+
+services:
+  dns:
+    build: ./dns
+    container_name: docguard-dns
+    environment:
+      SIGNED_ZONES: "sender.docguard.test empfang.docguard.test"
+      UNSIGNED_ZONES: "unsigned.docguard.test"   # absichtlich unsigniert -> fail-closed-Test
+    networks:
+      sandbox:
+        ipv4_address: 10.10.0.53
+    volumes:
+      - ./dns/zones:/zones:ro
+
+  postfix-sender:
+    build:
+      context: ./filters
+      dockerfile: ../postfix-sender/Dockerfile
+    container_name: docguard-postfix-sender
+    hostname: mail.sender.docguard.test
+    depends_on:
+      - dns
+    dns: 10.10.0.53
+    environment:
+      DOCGUARD_SHADOW_MODE: "0"          # "1" = nur protokollieren, "0" = scharf
+      DOCGUARD_REQUIRE_DNSSEC: "1"       # Schlüssel nur mit validierter (AD-)Antwort
+      DOCGUARD_DNS_SERVER: "10.10.0.53"
+      DOCGUARD_LOG: "/var/log/docguard/filter.log"
+    volumes:
+      - ./postfix-sender/main.cf:/etc/postfix/main.cf:ro
+      - ./postfix-sender/master.cf:/etc/postfix/master.cf:ro
+      - ./postfix-sender/transport.regexp:/etc/postfix/transport.regexp:ro
+      - ./filters/docguard_filter.py:/usr/local/bin/docguard_filter.py:ro
+      - sender-logs:/var/log/docguard
+    networks:
+      sandbox:
+        ipv4_address: 10.10.0.10
+    ports:
+      - "2525:25"     # SMTP für Testmails von deinem Host aus
+
+  postfix-empfang:
+    build:
+      context: ./filters
+      dockerfile: ../postfix-empfang/Dockerfile
+    container_name: docguard-postfix-empfang
+    hostname: mail.empfang.docguard.test
+    depends_on:
+      - dns
+    dns: 10.10.0.53
+    environment:
+      DOCGUARD_PRIVATE_KEY: "/etc/docguard/private.key"
+      DOCGUARD_LOG: "/var/log/docguard/unwrap.log"
+    volumes:
+      - ./postfix-empfang/main.cf:/etc/postfix/main.cf:ro
+      - ./postfix-empfang/master.cf:/etc/postfix/master.cf:ro
+      - ./postfix-empfang/transport.regexp:/etc/postfix/transport.regexp:ro
+      - ./filters/docguard_unwrap.py:/usr/local/bin/docguard_unwrap.py:ro
+      - ./keys/empfang-private.key:/etc/docguard/private.key:ro
+      - empfang-logs:/var/log/docguard
+    networks:
+      sandbox:
+        ipv4_address: 10.10.0.20
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: docguard-mailpit
+    networks:
+      sandbox:
+        ipv4_address: 10.10.0.30
+    ports:
+      - "8025:8025"   # Weboberfläche: zeigt die final zugestellte (entschlüsselte) Mail
+
+networks:
+  sandbox:
+    ipam:
+      config:
+        - subnet: 10.10.0.0/24
+
+volumes:
+  sender-logs:
+  empfang-logs:
